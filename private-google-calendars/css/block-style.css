@@ -1,5 +1,5 @@
 .components-base-control.pgc-sidebar-row {
-    margin-bottom:6px !important;
+    margin-bottom: 6px !important;
 }
 
 .has-error textarea {
@@ -13,6 +13,6 @@
 
 .pgc-copy-link {
     font-size: initial;
-    margin-top: -16px;
+    margin-top: 0 !important;
     text-align: right;
 }

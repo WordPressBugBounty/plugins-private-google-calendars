@@ -3,7 +3,7 @@
 Plugin Name: Private Google Calendars
 Description: Display multiple private Google Calendars
 Plugin URI: http://blog.michielvaneerd.nl/private-google-calendars/
-Version: 20250811
+Version: 20251206
 Author: Michiel van Eerd
 Author URI: http://michielvaneerd.nl/
 License: GPL2
@@ -12,7 +12,7 @@ Domain Path: /languages
 */
 
 // Always set this to the same version as "Version" in header! Used for query parameters added to style and scripts.
-define('PGC_PLUGIN_VERSION', '20250811');
+define('PGC_PLUGIN_VERSION', '20251206');
 
 if (!defined('PGC_THEMES_DIR_NAME')) {
   define('PGC_THEMES_DIR_NAME', 'pgc_themes');
@@ -43,10 +43,11 @@ define('PGC_ENQUEUE_ACTION_PRIORITY', 11);
 
 function initTranslatedDefines()
 {
-  define('PGC_PLUGIN_NAME', __('Private Google Calendars'));
+  define('PGC_PLUGIN_NAME', __('Private Google Calendars', 'private-google-calendars'));
 
   define('PGC_NOTICES_VERIFY_SUCCESS', __('Verify OK!', 'private-google-calendars'));
   define('PGC_NOTICES_REVOKE_SUCCESS', __('Access revoked. This plugin does not have access to your calendars anymore.', 'private-google-calendars'));
+  /* translators: Link to Google permissions page */
   define('PGC_NOTICES_REMOVE_SUCCESS', sprintf(__('Plugin data removed. Make sure to also manually revoke access to your calendars in the Google <a target="__blank" href="%s">Permissions</a> page!', 'private-google-calendars'), 'https://myaccount.google.com/permissions'));
   define('PGC_NOTICES_CALENDARLIST_UPDATE_SUCCESS', __('Calendars updated.', 'private-google-calendars'));
   define('PGC_NOTICES_COLORLIST_UPDATE_SUCCESS', __('Colors updated.', 'private-google-calendars'));
@@ -55,8 +56,10 @@ function initTranslatedDefines()
   define('PGC_ERRORS_CLIENT_SECRET_MISSING', __('No client secret.', 'private-google-calendars'));
   define('PGC_ERRORS_CLIENT_SECRET_INVALID', __('Invalid client secret.', 'private-google-calendars'));
   define('PGC_ERRORS_ACCESS_TOKEN_MISSING', __('No access token.', 'private-google-calendars'));
+  /* translators: Link to Google permissions page */
   define('PGC_ERRORS_REFRESH_TOKEN_MISSING', sprintf(__('Your refresh token is missing!<br><br>This can only be solved by manually revoking this plugin&#39;s access in the Google <a target="__blank" href="%s">Permissions</a> page and remove all plugin data.', 'private-google-calendars'), 'https://myaccount.google.com/permissions'));
   define('PGC_ERRORS_ACCESS_REFRESH_TOKEN_MISSING', __('No access and refresh tokens.', 'private-google-calendars'));
+  /* translators: The redirect URI from your Google project */
   define('PGC_ERRORS_REDIRECT_URI_MISSING', __('URI <code>%s</code> missing in the client secret file. Adjust your Google project and upload the new client secret file.', 'private-google-calendars'));
   define('PGC_ERRORS_INVALID_FORMAT', __('Invalid format', 'private-google-calendars'));
   define('PGC_ERRORS_NO_CALENDARS', __('No calendars', 'private-google-calendars'));
@@ -154,30 +157,10 @@ function pgc_add_plugin_settings_links($links)
   return $links;
 }
 
-function pgc_register_block()
+add_action('wp_enqueue_scripts', 'pgc_wp_enqueue_scripts_first', 1, 1);
+add_action('admin_enqueue_scripts', 'pgc_wp_enqueue_scripts_first', 1, 1);
+function pgc_wp_enqueue_scripts_first()
 {
-
-  $asset_file = include(plugin_dir_path(__FILE__) . 'build/index.asset.php');
-
-  wp_register_script(
-    'pgc-plugin-script',
-    plugins_url('build/index.js', __FILE__),
-    $asset_file['dependencies'],
-    PGC_PLUGIN_VERSION
-  );
-
-  wp_register_style(
-    'pgc-plugin-style',
-    plugins_url('css/block-style.css', __FILE__),
-    ['wp-edit-blocks'],
-    PGC_PLUGIN_VERSION
-  );
-
-  register_block_type('pgc-plugin/calendar', array(
-    'editor_script' => 'pgc-plugin-script',
-    'editor_style' => 'pgc-plugin-style'
-  ));
-
   // Make the selected calendars available for the block.
   $selectedCalendarIds = get_option('pgc_selected_calendar_ids');
   if (empty($selectedCalendarIds)) {
@@ -236,8 +219,38 @@ function pgc_register_block()
     'fullcalendar_version' => get_option('pgc_fullcalendar_version', 4)
   ];
 
-  wp_add_inline_script('pgc-plugin-script', 'window.pgc_selected_calendars=' . json_encode($selectedCalendars) . ';', 'before');
-  wp_add_inline_script('pgc-plugin-script', 'window.pgc_trans = ' . json_encode($blockTrans) . ';', 'before');
+?>
+  <script>
+    window.pgc_selected_calendars = <?php echo json_encode($selectedCalendars); ?>;
+    window.pgc_trans = <?php echo json_encode($blockTrans); ?>;
+  </script>
+<?php
+}
+
+function pgc_register_block()
+{
+
+  // $asset_file = include(plugin_dir_path(__FILE__) . 'build/index.asset.php');
+
+  // wp_register_script(
+  //   'pgc-plugin-script',
+  //   plugins_url('build/index.js', __FILE__),
+  //   $asset_file['dependencies'],
+  //   PGC_PLUGIN_VERSION
+  // );
+
+  // wp_register_style(
+  //   'pgc-plugin-style',
+  //   plugins_url('css/block-style.css', __FILE__),
+  //   ['wp-edit-blocks'],
+  //   PGC_PLUGIN_VERSION
+  // );
+
+  // register_block_type('pgc-plugin/calendar', array(
+  //   'editor_script' => 'pgc-plugin-script',
+  //   'editor_style' => 'pgc-plugin-style'
+  // ));
+  register_block_type(__DIR__);
 }
 
 function pgc_shortcode($atts = [])
@@ -440,12 +453,10 @@ function pgc_admin_enqueue_scripts($hook)
 /**
  * Add CSS and Javascript for frontend.
  */
-//add_action('wp_enqueue_scripts', 'pgc_enqueue_scripts', PHP_INT_MAX);
 add_action('wp_enqueue_scripts', 'pgc_enqueue_scripts', PGC_ENQUEUE_ACTION_PRIORITY);
 // make sure we load last after theme files so we can override.
 function pgc_enqueue_scripts()
 {
-
   wp_enqueue_style('dashicons');
 
   $fullcalendarVersion = get_option('pgc_fullcalendar_version');
@@ -824,13 +835,15 @@ function pgc_get_calendars_by_key($calendarIds)
 add_action('admin_menu', 'pgc_settings_page');
 function pgc_settings_page()
 {
-  $page = add_options_page(
-    PGC_PLUGIN_NAME,
-    PGC_PLUGIN_NAME,
-    'manage_options',
-    'pgc',
-    'pgc_settings_page_html'
-  );
+  if (current_user_can('manage_options')) {
+    $page = add_options_page(
+      PGC_PLUGIN_NAME,
+      PGC_PLUGIN_NAME,
+      'manage_options',
+      'pgc',
+      'pgc_settings_page_html'
+    );
+  }
 }
 
 /**
@@ -919,26 +932,26 @@ function pgc_show_tools()
 
 ?>
   <hr>
-  <h1><?php _e('Tools'); ?></h1><?php
+  <h1><?php _e('Tools', 'private-google-calendars'); ?></h1><?php
 
-                                if (empty($clientSecretError) && !empty($accessToken) && !empty($refreshToken)) {
+                                                            if (empty($clientSecretError) && !empty($accessToken) && !empty($refreshToken)) {
 
 
 
-                                ?>
+                                                            ?>
 
     <h2><?php _e('Update calendars', 'private-google-calendars'); ?></h2>
     <p><?php _e('Use this when you add or remove calendars in your Google account.', 'private-google-calendars'); ?></p>
     <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
       <input type="hidden" name="action" value="pgc_calendarlist">
-      <?php submit_button(__('Update calendars'), 'small', 'submit-calendarlist', false); ?>
+      <?php submit_button(__('Update calendars', 'private-google-calendars'), 'small', 'submit-calendarlist', false); ?>
     </form>
 
     <h2><?php _e('Get colorlist', 'private-google-calendars'); ?></h2>
     <p><?php _e('Download the colorlist. You only have to use this if you use custom colors for events.', 'private-google-calendars'); ?></p>
     <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
       <input type="hidden" name="action" value="pgc_colorlist">
-      <?php submit_button(__('Update colorlist'), 'small', 'submit-colorlist', false); ?>
+      <?php submit_button(__('Update colorlist', 'private-google-calendars'), 'small', 'submit-colorlist', false); ?>
     </form>
 
     <h2><?php _e('Verify', 'private-google-calendars'); ?></h2>
@@ -950,19 +963,19 @@ function pgc_show_tools()
 
     <h2><?php _e('Cache', 'private-google-calendars'); ?></h2>
     <?php
-                                  $cachedEvents = $wpdb->get_var("SELECT option_name FROM " . $wpdb->options
-                                    . " WHERE option_name LIKE '_transient_timeout_" . PGC_TRANSIENT_PREFIX . "%' OR option_name LIKE '_transient_" . PGC_TRANSIENT_PREFIX . "%' LIMIT 1");
-                                  $cacheArgs = [];
-                                  if (empty($cachedEvents)) {
-                                    $cacheArgs['disabled'] = true;
-                                  }
+                                                              $cachedEvents = $wpdb->get_var("SELECT option_name FROM " . $wpdb->options
+                                                                . " WHERE option_name LIKE '_transient_timeout_" . PGC_TRANSIENT_PREFIX . "%' OR option_name LIKE '_transient_" . PGC_TRANSIENT_PREFIX . "%' LIMIT 1");
+                                                              $cacheArgs = [];
+                                                              if (empty($cachedEvents)) {
+                                                                $cacheArgs['disabled'] = true;
+                                                              }
     ?>
     <p><?php _e('Remove cached calendar events.', 'private-google-calendars'); ?></p>
     <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
       <input type="hidden" name="action" value="pgc_deletecache">
       <?php
-                                  submit_button(__('Remove cache', 'private-google-calendars'), 'small', 'submit-deletecache', false, $cacheArgs);
-                                  if (empty($cachedEvents)) { ?>
+                                                              submit_button(__('Remove cache', 'private-google-calendars'), 'small', 'submit-deletecache', false, $cacheArgs);
+                                                              if (empty($cachedEvents)) { ?>
         <em><?php _e('Cache is empty.', 'private-google-calendars'); ?></em>
       <?php } ?>
     </form>
@@ -978,7 +991,10 @@ function pgc_show_tools()
   <?php } ?>
 
   <h2><?php _e('Remove plugin data', 'private-google-calendars'); ?></h2>
-  <p><?php printf(__('Removes all saved plugin data.<br>If you have authorized this plugin access to your calendars, manually revoke access on the Google <a href="%s" target="__blank">Permissions</a> page.', 'private-google-calendars'), 'https://myaccount.google.com/permissions'); ?></p>
+  <p><?php
+      /* translators: Link to Google permissions page */
+      printf(__('Removes all saved plugin data.<br>If you have authorized this plugin access to your calendars, manually revoke access on the Google <a href="%s" target="__blank">Permissions</a> page.', 'private-google-calendars'), 'https://myaccount.google.com/permissions');
+      ?></p>
   <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
     <input type="hidden" name="action" value="pgc_remove">
     <?php submit_button(__('Remove plugin data', 'private-google-calendars'), 'small', 'submit-remove', false); ?>
@@ -1007,24 +1023,26 @@ function pgc_sort_calendars(&$items)
 add_action('admin_post_pgc_calendarlist', 'pgc_admin_post_calendarlist');
 function pgc_admin_post_calendarlist()
 {
-  try {
-    $client = getGoogleClient(true);
-    if ($client->isAccessTokenExpired()) {
-      if (!$client->getRefreshToken()) {
-        throw new Exception(PGC_ERRORS_REFRESH_TOKEN_MISSING);
+  if (current_user_can('manage_options')) {
+    try {
+      $client = getGoogleClient(true);
+      if ($client->isAccessTokenExpired()) {
+        if (!$client->getRefreshToken()) {
+          throw new Exception(PGC_ERRORS_REFRESH_TOKEN_MISSING);
+        }
+        $client->refreshAccessToken();
       }
-      $client->refreshAccessToken();
+      $service = new PGC_GoogleCalendarClient($client);
+      $items = $service->getCalendarList(PGC_CALENDARS_MAX_RESULTS);
+
+      pgc_sort_calendars($items);
+
+      update_option('pgc_calendarlist', getPrettyJSONString($items), false);
+      pgc_add_notice(PGC_NOTICES_CALENDARLIST_UPDATE_SUCCESS, 'success', true);
+      exit;
+    } catch (Exception $ex) {
+      pgc_die($ex);
     }
-    $service = new PGC_GoogleCalendarClient($client);
-    $items = $service->getCalendarList(PGC_CALENDARS_MAX_RESULTS);
-
-    pgc_sort_calendars($items);
-
-    update_option('pgc_calendarlist', getPrettyJSONString($items), false);
-    pgc_add_notice(PGC_NOTICES_CALENDARLIST_UPDATE_SUCCESS, 'success', true);
-    exit;
-  } catch (Exception $ex) {
-    pgc_die($ex);
   }
 }
 
@@ -1034,21 +1052,23 @@ function pgc_admin_post_calendarlist()
 add_action('admin_post_pgc_colorlist', 'pgc_admin_post_colorlist');
 function pgc_admin_post_colorlist()
 {
-  try {
-    $client = getGoogleClient(true);
-    if ($client->isAccessTokenExpired()) {
-      if (!$client->getRefreshToken()) {
-        throw new Exception(PGC_ERRORS_REFRESH_TOKEN_MISSING);
+  if (current_user_can('manage_options')) {
+    try {
+      $client = getGoogleClient(true);
+      if ($client->isAccessTokenExpired()) {
+        if (!$client->getRefreshToken()) {
+          throw new Exception(PGC_ERRORS_REFRESH_TOKEN_MISSING);
+        }
+        $client->refreshAccessToken();
       }
-      $client->refreshAccessToken();
+      $service = new PGC_GoogleCalendarClient($client);
+      $items = $service->getColorList();
+      update_option('pgc_colorlist', getPrettyJSONString($items), false);
+      pgc_add_notice(PGC_NOTICES_COLORLIST_UPDATE_SUCCESS, 'success', true);
+      exit;
+    } catch (Exception $ex) {
+      pgc_die($ex);
     }
-    $service = new PGC_GoogleCalendarClient($client);
-    $items = $service->getColorList();
-    update_option('pgc_colorlist', getPrettyJSONString($items), false);
-    pgc_add_notice(PGC_NOTICES_COLORLIST_UPDATE_SUCCESS, 'success', true);
-    exit;
-  } catch (Exception $ex) {
-    pgc_die($ex);
   }
 }
 
@@ -1058,9 +1078,11 @@ function pgc_admin_post_colorlist()
 add_action('admin_post_pgc_deletecache', 'pgc_admin_post_deletecache');
 function pgc_admin_post_deletecache()
 {
-  pgc_delete_calendar_cache();
-  pgc_add_notice(PGC_NOTICES_CACHE_DELETED, 'success', true);
-  exit;
+  if (current_user_can('manage_options')) {
+    pgc_delete_calendar_cache();
+    pgc_add_notice(PGC_NOTICES_CACHE_DELETED, 'success', true);
+    exit;
+  }
 }
 
 /**
@@ -1069,20 +1091,24 @@ function pgc_admin_post_deletecache()
 add_action('admin_post_pgc_verify', 'pgc_admin_post_verify');
 function pgc_admin_post_verify()
 {
-  try {
-    $client = getGoogleClient(true);
-    $client->refreshAccessToken();
-    pgc_add_notice(PGC_NOTICES_VERIFY_SUCCESS, 'success', true);
-    exit;
-  } catch (Exception $ex) {
-    pgc_die($ex);
+  if (current_user_can('manage_options')) {
+    try {
+      $client = getGoogleClient(true);
+      $client->refreshAccessToken();
+      pgc_add_notice(PGC_NOTICES_VERIFY_SUCCESS, 'success', true);
+      exit;
+    } catch (Exception $ex) {
+      pgc_die($ex);
+    }
   }
 }
 
 add_action('admin_post_pgc_remove_private', function () {
-  pgc_delete_plugin_data('private');
-  pgc_add_notice(PGC_NOTICES_REMOVE_SUCCESS, 'success', true);
-  exit;
+  if (current_user_can('manage_options')) {
+    pgc_delete_plugin_data('private');
+    pgc_add_notice(PGC_NOTICES_REMOVE_SUCCESS, 'success', true);
+    exit;
+  }
 });
 
 /**
@@ -1091,9 +1117,11 @@ add_action('admin_post_pgc_remove_private', function () {
 add_action('admin_post_pgc_remove', 'pgc_admin_post_remove');
 function pgc_admin_post_remove()
 {
-  pgc_delete_plugin_data('all');
-  pgc_add_notice(PGC_NOTICES_REMOVE_SUCCESS, 'success', true);
-  exit;
+  if (current_user_can('manage_options')) {
+    pgc_delete_plugin_data('all');
+    pgc_add_notice(PGC_NOTICES_REMOVE_SUCCESS, 'success', true);
+    exit;
+  }
 }
 
 /**
@@ -1102,26 +1130,28 @@ function pgc_admin_post_remove()
 add_action('admin_post_pgc_revoke', 'pgc_admin_post_revoke');
 function pgc_admin_post_revoke()
 {
-  try {
-    $client = getGoogleClient();
-    $accessToken = getDecoded('pgc_access_token');
-    if (!empty($accessToken)) {
-      $client->setAccessTokenInfo($accessToken);
+  if (current_user_can('manage_options')) {
+    try {
+      $client = getGoogleClient();
+      $accessToken = getDecoded('pgc_access_token');
+      if (!empty($accessToken)) {
+        $client->setAccessTokenInfo($accessToken);
+      }
+      $refreshToken = get_option("pgc_refresh_token");
+      if (!empty($refreshToken)) {
+        $client->setRefreshToken($refreshToken);
+      }
+      if (empty($accessToken) && empty($refreshToken)) {
+        throw new Exception(PGC_ERRORS_ACCESS_REFRESH_TOKEN_MISSING);
+      }
+      $client->revoke();
+      // Clear access and refresh tokens
+      pgc_delete_plugin_data('private');
+      pgc_add_notice(PGC_NOTICES_REVOKE_SUCCESS, 'success', true);
+      exit;
+    } catch (Exception $ex) {
+      pgc_die($ex);
     }
-    $refreshToken = get_option("pgc_refresh_token");
-    if (!empty($refreshToken)) {
-      $client->setRefreshToken($refreshToken);
-    }
-    if (empty($accessToken) && empty($refreshToken)) {
-      throw new Exception(PGC_ERRORS_ACCESS_REFRESH_TOKEN_MISSING);
-    }
-    $client->revoke();
-    // Clear access and refresh tokens
-    pgc_delete_plugin_data('private');
-    pgc_add_notice(PGC_NOTICES_REVOKE_SUCCESS, 'success', true);
-    exit;
-  } catch (Exception $ex) {
-    pgc_die($ex);
   }
 }
 
@@ -1131,13 +1161,14 @@ function pgc_admin_post_revoke()
 add_action('admin_post_pgc_authorize', 'pgc_admin_post_authorize');
 function pgc_admin_post_authorize()
 {
-
-  try {
-    $client = getGoogleClient();
-    $client->authorize(pgc_get_state_from_user());
-    exit;
-  } catch (Exception $ex) {
-    pgc_die($ex);
+  if (current_user_can('manage_options')) {
+    try {
+      $client = getGoogleClient();
+      $client->authorize(pgc_get_state_from_user());
+      exit;
+    } catch (Exception $ex) {
+      pgc_die($ex);
+    }
   }
 }
 
@@ -1148,25 +1179,27 @@ function pgc_admin_post_authorize()
 register_uninstall_hook(__FILE__, 'pgc_uninstall');
 function pgc_uninstall()
 {
-  try {
-    $client = getGoogleClient();
-    $accessToken = getDecoded('pgc_access_token');
-    if (!empty($accessToken)) {
-      $client->setAccessTokenInfo($accessToken);
+  if (current_user_can('manage_options')) {
+    try {
+      $client = getGoogleClient();
+      $accessToken = getDecoded('pgc_access_token');
+      if (!empty($accessToken)) {
+        $client->setAccessTokenInfo($accessToken);
+      }
+      $refreshToken = get_option("pgc_refresh_token");
+      if (!empty($refreshToken)) {
+        $client->setRefreshToken($refreshToken);
+      }
+      if (empty($accessToken) && empty($refreshToken)) {
+        throw new Exception(PGC_ERRORS_ACCESS_REFRESH_TOKEN_MISSING);
+      }
+      $client->revoke();
+    } catch (Exception $ex) {
+      // Too bad...
+    } finally {
+      // Clear all plugin data
+      pgc_delete_plugin_data('all');
     }
-    $refreshToken = get_option("pgc_refresh_token");
-    if (!empty($refreshToken)) {
-      $client->setRefreshToken($refreshToken);
-    }
-    if (empty($accessToken) && empty($refreshToken)) {
-      throw new Exception(PGC_ERRORS_ACCESS_REFRESH_TOKEN_MISSING);
-    }
-    $client->revoke();
-  } catch (Exception $ex) {
-    // Too bad...
-  } finally {
-    // Clear all plugin data
-    pgc_delete_plugin_data('all');
   }
 }
 
@@ -1244,16 +1277,18 @@ function pgc_die($error = null)
  */
 function pgc_validate_client_secret_input($input)
 {
-  if (
-    !empty($_FILES) && !empty($_FILES['pgc_client_secret'])
-    && is_uploaded_file($_FILES['pgc_client_secret']['tmp_name'])
-  ) {
-    $content = trim(file_get_contents($_FILES['pgc_client_secret']['tmp_name']));
-    $decoded = json_decode($content, true);
-    if (!empty($decoded)) {
-      return getPrettyJSONString($decoded);
+  if (current_user_can('manage_options')) {
+    if (
+      !empty($_FILES) && !empty($_FILES['pgc_client_secret'])
+      && is_uploaded_file($_FILES['pgc_client_secret']['tmp_name'])
+    ) {
+      $content = trim(file_get_contents($_FILES['pgc_client_secret']['tmp_name']));
+      $decoded = json_decode($content, true);
+      if (!empty($decoded)) {
+        return getPrettyJSONString($decoded);
+      }
+      add_settings_error('pgc', 'client_secret_input_error', PGC_ERRORS_CLIENT_SECRET_INVALID, 'error');
     }
-    add_settings_error('pgc', 'client_secret_input_error', PGC_ERRORS_CLIENT_SECRET_INVALID, 'error');
   }
   return null;
 }
@@ -1270,6 +1305,9 @@ function pgc_get_state_from_user()
 add_action('admin_init', 'pgc_settings_init');
 function pgc_settings_init()
 {
+  if (!current_user_can('manage_options')) {
+    return;
+  }
 
   // Important to first check state! Otherwise this can interfere with other plugins that do a redirect!
   // https://wordpress.org/support/topic/state-mismatch-error-with-contact-form-7/
